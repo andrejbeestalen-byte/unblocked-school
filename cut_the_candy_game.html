@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut the Candy - Physics Puzzle Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800;900&display=swap');
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: #1e1b4b;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            overflow: hidden;
+        }
+        .font-fredoka {
+            font-family: 'Fredoka One', cursive;
+        }
+        .canvas-shadow {
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 100px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-center items-center p-2 sm:p-4 text-white">
+
+    <!-- Game Container -->
+    <div class="relative w-full max-w-4xl h-full max-h-[850px] flex flex-col items-center justify-between bg-gradient-to-b from-indigo-900 via-purple-900 to-slate-900 rounded-3xl p-3 sm:p-5 border-4 border-indigo-500/30 shadow-2xl overflow-hidden">
+        
+        <!-- Top Bar Header -->
+        <div class="w-full flex items-center justify-between z-10 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10">
+            <div class="flex items-center gap-3">
+                <button id="btn-select-level" class="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-3 py-1.5 rounded-xl shadow-md transition transform active:scale-95 text-xs sm:text-sm flex items-center gap-1">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3 13h1v7c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-7h1a1 1 0 0 0 .7-1.7l-9-9a1 1 0 0 0-1.4 0l-9 9A1 1 0 0 0 3 13z"/></svg>
+                    Levels
+                </button>
+                <div class="font-fredoka text-lg sm:text-xl text-amber-400 tracking-wide" id="level-indicator">Level 1</div>
+            </div>
+
+            <!-- Stars display during gameplay -->
+            <div class="flex items-center gap-1.5 bg-black/30 px-3 py-1 rounded-full border border-white/10" id="stars-display">
+                <span class="star-icon text-xl text-gray-500">★</span>
+                <span class="star-icon text-xl text-gray-500">★</span>
+                <span class="star-icon text-xl text-gray-500">★</span>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="flex items-center gap-2">
+                <button id="btn-mute" class="bg-indigo-600 hover:bg-indigo-500 p-2 rounded-xl text-white shadow transition active:scale-95">
+                    <svg id="icon-sound-on" class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    <svg id="icon-sound-off" class="w-5 h-5 fill-current hidden" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                </button>
+                <button id="btn-restart" class="bg-indigo-600 hover:bg-indigo-500 p-2 rounded-xl text-white shadow transition active:scale-95">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Game Canvas -->
+        <div class="relative w-full flex-1 my-2 rounded-2xl overflow-hidden canvas-shadow bg-slate-950 border border-white/5">
+            <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+            <!-- Level Select Overlay -->
+            <div id="modal-levels" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 hidden">
+                <h2 class="font-fredoka text-3xl sm:text-4xl text-amber-400 mb-6 tracking-wide drop-shadow-md">Select Level</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-md w-full" id="levels-grid">
+                    <!-- Dynamic Buttons Generated Here -->
+                </div>
+                <button id="btn-close-levels" class="mt-8 bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-2 rounded-full border border-white/10 transition">Close</button>
+            </div>
+
+            <!-- Level Complete / Victory Overlay -->
+            <div id="modal-victory" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 hidden">
+                <div class="bg-gradient-to-b from-indigo-900 to-purple-950 p-8 rounded-3xl border-2 border-amber-400/40 shadow-2xl text-center max-w-sm w-full animate-bounce-short">
+                    <h2 class="font-fredoka text-3xl text-amber-400 mb-2">SWEET SUCCESS!</h2>
+                    <p class="text-indigo-200 text-sm mb-4">Om Nom is happy!</p>
+                    
+                    <div class="flex justify-center items-center gap-3 my-6" id="victory-stars">
+                        <span class="star-win text-4xl text-amber-400 transform scale-110 drop-shadow-md">★</span>
+                        <span class="star-win text-4xl text-amber-400 transform scale-110 drop-shadow-md">★</span>
+                        <span class="star-win text-4xl text-amber-400 transform scale-110 drop-shadow-md">★</span>
+                    </div>
+
+                    <div class="flex justify-center gap-4 mt-6">
+                        <button id="btn-victory-restart" class="bg-indigo-700 hover:bg-indigo-600 text-white p-3 rounded-2xl shadow-lg transition active:scale-95">
+                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                        </button>
+                        <button id="btn-next-level" class="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-6 py-3 rounded-2xl shadow-lg transition transform active:scale-95 flex items-center gap-2">
+                            <span>Next Level</span>
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-8.29-1.42 1.42L16.86 11H5v2z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions Footer -->
+        <div class="text-xs text-indigo-300/70 text-center font-semibold">
+            Swipe/Drag to cut ropes • Click bubbles to pop • Click cushions to blow air
+        </div>
+    </div>
+
+    <!-- Canvas Game Script -->
+    <script>
+        // --- Web Audio API Synth ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playCut() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playStar() {
+                if (this.muted) return;
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.04);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.04 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.04);
+                    osc.stop(this.ctx.currentTime + idx * 0.04 + 0.15);
+                });
+            }
+
+            playPop() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+
+            playPuff() {
+                if (this.muted) return;
+                this.init();
+                const bufferSize = this.ctx.sampleRate * 0.1;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 400;
+                filter.Q.value = 1.0;
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+            }
+
+            playChomp() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // --- Physics Engine (Verlet Integration) ---
+        class Particle {
+            constructor(x, y, pinned = false, radius = 4) {
+                this.x = x;
+                this.y = y;
+                this.oldx = x;
+                this.oldy = y;
+                this.pinned = pinned;
+                this.radius = radius;
+                this.vx = 0;
+                this.vy = 0;
+            }
+
+            update(dt, gravity, inBubble) {
+                if (this.pinned) return;
+                this.vx = (this.x - this.oldx) * 0.99; // Damping
+                this.vy = (this.y - this.oldy) * 0.99;
+                this.oldx = this.x;
+                this.oldy = this.y;
+
+                const currentGravity = inBubble ? -1.2 : gravity; // Upward float inside bubble
+                this.x += this.vx;
+                this.y += this.vy + currentGravity * dt * dt;
+            }
+        }
+
+        class Constraint {
+            constructor(p1, p2, length) {
+                this.p1 = p1;
+                this.p2 = p2;
+                this.length = length || Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                this.active = true;
+            }
+
+            resolve() {
+                if (!this.active) return;
+                const dx = this.p2.x - this.p1.x;
+                const dy = this.p2.y - this.p1.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist === 0) return;
+                const delta = (dist - this.length) / dist;
+
+                if (!this.p1.pinned) {
+                    this.p1.x += dx * 0.5 * delta;
+                    this.p1.y += dy * 0.5 * delta;
+                }
+                if (!this.p2.pinned) {
+                    this.p2.x -= dx * 0.5 * delta;
+                    this.p2.y -= dy * 0.5 * delta;
+                }
+            }
+        }
+
+        class Rope {
+            constructor(startX, startY, endParticle, segments = 10, length = 150) {
+                this.particles = [];
+                this.constraints = [];
+                const segLength = length / segments;
+
+                // First particle is fixed pin
+                const pin = new Particle(startX, startY, true);
+                this.particles.push(pin);
+
+                let prev = pin;
+                for (let i = 1; i < segments; i++) {
+                    const px = startX + (endParticle.x - startX) * (i / segments);
+                    const py = startY + (endParticle.y - startY) * (i / segments);
+                    const p = new Particle(px, py);
+                    this.particles.push(p);
+                    this.constraints.push(new Constraint(prev, p, segLength));
+                    prev = p;
+                }
+
+                // Attach to candy particle
+                this.constraints.push(new Constraint(prev, endParticle, segLength));
+            }
+
+            cut(x1, y1, x2, y2) {
+                let cutOccurred = false;
+                for (let c of this.constraints) {
+                    if (!c.active) continue;
+                    if (lineIntersects(x1, y1, x2, y2, c.p1.x, c.p1.y, c.p2.x, c.p2.y)) {
+                        c.active = false;
+                        cutOccurred = true;
+                    }
+                }
+                return cutOccurred;
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#d97706'; // Rope brown/amber color
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                for (let c of this.constraints) {
+                    if (c.active) {
+                        ctx.moveTo(c.p1.x, c.p1.y);
+                        ctx.lineTo(c.p2.x, c.p2.y);
+                    }
+                }
+                ctx.stroke();
+
+                // Draw rope pin joint
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.arc(this.particles[0].x, this.particles[0].y, 7, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Helper line intersection calculation
+        function lineIntersects(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) {
+            let s1_x = p1_x - p0_x, s1_y = p1_y - p0_y;
+            let s2_x = p3_x - p2_x, s2_y = p3_y - p2_y;
+            let s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+            let t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+            return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
+        }
+
+        // --- Game Setup ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            width = canvas.width;
+            height = canvas.height;
+        }
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            initLevel(currentLevelIndex);
+        });
+
+        // Game Entities State
+        let candyParticle;
+        let ropes = [];
+        let stars = [];
+        let bubbles = [];
+        let cushions = [];
+        let monster = { x: 0, y: 0, radius: 35, mouthOpen: 0 };
+        let sliceTrail = [];
+        let isMouseDown = false;
+        let inBubble = false;
+        let collectedStarsCount = 0;
+        let currentLevelIndex = 0;
+        let gameFinished = false;
+
+        // Level Configurations
+        const levels = [
+            // Level 1: Simple pendulum
+            {
+                setup: () => {
+                    const candy = new Particle(width * 0.3, height * 0.25, false, 18);
+                    ropes = [new Rope(width * 0.5, height * 0.1, candy, 12, height * 0.35)];
+                    stars = [
+                        { x: width * 0.42, y: height * 0.35, collected: false },
+                        { x: width * 0.5, y: height * 0.45, collected: false },
+                        { x: width * 0.58, y: height * 0.55, collected: false }
+                    ];
+                    monster.x = width * 0.7;
+                    monster.y = height * 0.75;
+                    bubbles = [];
+                    cushions = [];
+                    return candy;
+                }
+            },
+            // Level 2: Dual tension cut
+            {
+                setup: () => {
+                    const candy = new Particle(width * 0.5, height * 0.4, false, 18);
+                    ropes = [
+                        new Rope(width * 0.2, height * 0.15, candy, 10, height * 0.4),
+                        new Rope(width * 0.8, height * 0.15, candy, 10, height * 0.4)
+                    ];
+                    stars = [
+                        { x: width * 0.35, y: height * 0.3, collected: false },
+                        { x: width * 0.65, y: height * 0.3, collected: false },
+                        { x: width * 0.5, y: height * 0.65, collected: false }
+                    ];
+                    monster.x = width * 0.5;
+                    monster.y = height * 0.8;
+                    bubbles = [];
+                    cushions = [];
+                    return candy;
+                }
+            },
+            // Level 3: Floating Bubble
+            {
+                setup: () => {
+                    const candy = new Particle(width * 0.2, height * 0.3, false, 18);
+                    ropes = [new Rope(width * 0.2, height * 0.1, candy, 8, height * 0.25)];
+                    bubbles = [{ x: width * 0.2, y: height * 0.5, radius: 28, active: true }];
+                    stars = [
+                        { x: width * 0.2, y: height * 0.4, collected: false },
+                        { x: width * 0.5, y: height * 0.25, collected: false },
+                        { x: width * 0.8, y: height * 0.35, collected: false }
+                    ];
+                    monster.x = width * 0.8;
+                    monster.y = height * 0.75;
+                    cushions = [];
+                    return candy;
+                }
+            },
+            // Level 4: Air Cushion Blowers
+            {
+                setup: () => {
+                    const candy = new Particle(width * 0.5, height * 0.2, false, 18);
+                    ropes = [new Rope(width * 0.5, height * 0.08, candy, 8, height * 0.18)];
+                    cushions = [
+                        { x: width * 0.15, y: height * 0.45, dirX: 1, dirY: 0, radius: 30, angle: 0 },
+                        { x: width * 0.85, y: height * 0.65, dirX: -1, dirY: 0, radius: 30, angle: Math.PI }
+                    ];
+                    stars = [
+                        { x: width * 0.35, y: height * 0.45, collected: false },
+                        { x: width * 0.65, y: height * 0.65, collected: false },
+                        { x: width * 0.5, y: height * 0.75, collected: false }
+                    ];
+                    monster.x = width * 0.5;
+                    monster.y = height * 0.85;
+                    bubbles = [];
+                    return candy;
+                }
+            }
+        ];
+
+        function initLevel(index) {
+            currentLevelIndex = index;
+            collectedStarsCount = 0;
+            inBubble = false;
+            gameFinished = false;
+            sliceTrail = [];
+            updateStarsUI();
+            document.getElementById('level-indicator').innerText = `Level ${index + 1}`;
+            document.getElementById('modal-victory').classList.add('hidden');
+            document.getElementById('modal-levels').classList.add('hidden');
+
+            candyParticle = levels[index].setup();
+        }
+
+        function updateStarsUI() {
+            const starNodes = document.querySelectorAll('#stars-display .star-icon');
+            starNodes.forEach((node, i) => {
+                if (i < collectedStarsCount) {
+                    node.classList.remove('text-gray-500');
+                    node.classList.add('text-amber-400');
+                } else {
+                    node.classList.remove('text-amber-400');
+                    node.classList.add('text-gray-500');
+                }
+            });
+        }
+
+        // --- Interaction Listeners ---
+        function handleStart(x, y) {
+            sound.init();
+            isMouseDown = true;
+            sliceTrail = [{ x, y, time: Date.now() }];
+
+            // Check Cushion click
+            cushions.forEach(c => {
+                const dist = Math.hypot(x - c.x, y - c.y);
+                if (dist < c.radius + 10) {
+                    sound.playPuff();
+                    // Apply puff force to candy if within range
+                    const cDist = Math.hypot(candyParticle.x - c.x, candyParticle.y - c.y);
+                    if (cDist < 250) {
+                        const force = (1 - cDist / 250) * 18;
+                        candyParticle.x += c.dirX * force;
+                        candyParticle.y += c.dirY * force;
+                    }
+                    // Visual feedback
+                    c.puffAnim = 1.0;
+                }
+            });
+
+            // Check Bubble pop click
+            if (inBubble) {
+                const dist = Math.hypot(x - candyParticle.x, y - candyParticle.y);
+                if (dist < 32) {
+                    inBubble = false;
+                    sound.playPop();
+                }
+            }
+        }
+
+        function handleMove(x, y) {
+            if (!isMouseDown) return;
+            sliceTrail.push({ x, y, time: Date.now() });
+
+            // Check Rope Cuts
+            if (sliceTrail.length > 1) {
+                const p1 = sliceTrail[sliceTrail.length - 2];
+                const p2 = sliceTrail[sliceTrail.length - 1];
+                ropes.forEach(r => {
+                    if (r.cut(p1.x, p1.y, p2.x, p2.y)) {
+                        sound.playCut();
+                    }
+                });
+            }
+        }
+
+        function handleEnd() {
+            isMouseDown = false;
+        }
+
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const coords = getCanvasCoords(e);
+            handleStart(coords.x, coords.y);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const coords = getCanvasCoords(e);
+            handleMove(coords.x, coords.y);
+        });
+
+        window.addEventListener('mouseup', handleEnd);
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const coords = getCanvasCoords(e);
+            handleStart(coords.x, coords.y);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const coords = getCanvasCoords(e);
+            handleMove(coords.x, coords.y);
+        });
+
+        window.addEventListener('touchend', handleEnd);
+
+        // --- Render Helpers ---
+        function drawMonster() {
+            const dx = candyParticle.x - monster.x;
+            const dy = candyParticle.y - monster.y;
+            const dist = Math.hypot(dx, dy);
+
+            // Animate mouth opening when candy approaches
+            const targetMouth = (dist < 160 && dy < 50) ? Math.min(1.0, (160 - dist) / 100) : 0;
+            monster.mouthOpen += (targetMouth - monster.mouthOpen) * 0.15;
+
+            ctx.save();
+            ctx.translate(monster.x, monster.y);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.ellipse(0, monster.radius + 8, monster.radius * 0.9, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Monster Body (Cute Green Om Nom inspired)
+            ctx.fillStyle = '#84cc16'; // Lime green
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Feet
+            ctx.fillStyle = '#65a30d';
+            ctx.beginPath();
+            ctx.arc(-20, 28, 10, 0, Math.PI * 2);
+            ctx.arc(20, 28, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            const eyeOffset = 14;
+            const eyeAngle = Math.atan2(dy, dx);
+            const pupilDist = 3;
+
+            // Left Eye
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(-eyeOffset, -12, 12, 0, Math.PI * 2);
+            ctx.fill();
+            // Right Eye
+            ctx.beginPath();
+            ctx.arc(eyeOffset, -12, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pupils
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(-eyeOffset + Math.cos(eyeAngle) * pupilDist, -12 + Math.sin(eyeAngle) * pupilDist, 5, 0, Math.PI * 2);
+            ctx.arc(eyeOffset + Math.cos(eyeAngle) * pupilDist, -12 + Math.sin(eyeAngle) * pupilDist, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mouth
+            ctx.fillStyle = '#450a0a';
+            ctx.beginPath();
+            const mHeight = 8 + monster.mouthOpen * 22;
+            ctx.ellipse(0, 10, 18, mHeight, 0, 0, Math.PI);
+            ctx.fill();
+
+            // Teeth
+            if (monster.mouthOpen > 0.2) {
+                ctx.fillStyle = '#ffffff';
+                // Top teeth
+                ctx.beginPath();
+                ctx.moveTo(-12, 10);
+                ctx.lineTo(-7, 16);
+                ctx.lineTo(-2, 10);
+                ctx.lineTo(3, 16);
+                ctx.lineTo(8, 10);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawCandy() {
+            ctx.save();
+            ctx.translate(candyParticle.x, candyParticle.y);
+
+            // Floating Bubble enclosing candy
+            if (inBubble) {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+                ctx.strokeStyle = 'rgba(186, 230, 253, 0.7)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 28, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Bubble shine
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(-10, -10, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Candy Body (Swirl Style)
+            ctx.beginPath();
+            ctx.arc(0, 0, candyParticle.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#ef4444'; // Red base
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#b91c1c';
+            ctx.stroke();
+
+            // White Swirl Stripes
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.arc(0, 0, candyParticle.radius - 2, (i * Math.PI) / 2, (i * Math.PI) / 2 + 0.4);
+                ctx.lineTo(0, 0);
+                ctx.fill();
+            }
+
+            // Shiny Highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.beginPath();
+            ctx.arc(-5, -5, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawStars() {
+            stars.forEach(s => {
+                if (s.collected) return;
+                ctx.save();
+                ctx.translate(s.x, s.y);
+                
+                // Pulsing glow
+                const time = Date.now() * 0.005;
+                const scale = 1 + Math.sin(time + s.x) * 0.1;
+                ctx.scale(scale, scale);
+
+                // Star polygon
+                ctx.fillStyle = '#fbbf24';
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 15, -Math.sin((18 + i * 72) * Math.PI / 180) * 15);
+                    ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 7, -Math.sin((54 + i * 72) * Math.PI / 180) * 7);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            });
+        }
+
+        function drawBubbles() {
+            bubbles.forEach(b => {
+                if (!b.active) return;
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+                ctx.strokeStyle = 'rgba(186, 230, 253, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(-b.radius * 0.4, -b.radius * 0.4, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function drawCushions() {
+            cushions.forEach(c => {
+                ctx.save();
+                ctx.translate(c.x, c.y);
+
+                // Air puff wave animation if clicked
+                if (c.puffAnim && c.puffAnim > 0) {
+                    ctx.strokeStyle = `rgba(186, 230, 253, ${c.puffAnim})`;
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(c.dirX * 40, c.dirY * 40, (1 - c.puffAnim) * 50 + 10, -Math.PI / 3, Math.PI / 3);
+                    ctx.stroke();
+                    c.puffAnim -= 0.05;
+                }
+
+                // Cushion base
+                ctx.fillStyle = '#38bdf8';
+                ctx.strokeStyle = '#0284c7';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(0, 0, c.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Inner detail
+                ctx.fillStyle = '#bae6fd';
+                ctx.beginPath();
+                ctx.arc(0, 0, c.radius * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            });
+        }
+
+        function drawSliceTrail() {
+            const now = Date.now();
+            sliceTrail = sliceTrail.filter(p => now - p.time < 150);
+
+            if (sliceTrail.length < 2) return;
+
+            ctx.beginPath();
+            ctx.moveTo(sliceTrail[0].x, sliceTrail[0].y);
+            for (let i = 1; i < sliceTrail.length; i++) {
+                ctx.lineTo(sliceTrail[i].x, sliceTrail[i].y);
+            }
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        // --- Main Game Update Loop ---
+        function updatePhysics() {
+            if (gameFinished) return;
+
+            const dt = 0.9;
+            const gravity = 0.5;
+
+            // Particle Physics
+            candyParticle.update(dt, gravity, inBubble);
+
+            // Ropes Physics Update & Constraints
+            ropes.forEach(r => {
+                r.particles.forEach(p => p.update(dt, gravity, false));
+                for (let i = 0; i < 6; i++) { // Multiple iterations for stiffness
+                    r.constraints.forEach(c => c.resolve());
+                }
+            });
+
+            // Star Collection Check
+            stars.forEach(s => {
+                if (!s.collected) {
+                    const dist = Math.hypot(candyParticle.x - s.x, candyParticle.y - s.y);
+                    if (dist < candyParticle.radius + 15) {
+                        s.collected = true;
+                        collectedStarsCount++;
+                        sound.playStar();
+                        updateStarsUI();
+                    }
+                }
+            });
+
+            // Idle Bubble Collision Check
+            bubbles.forEach(b => {
+                if (b.active && !inBubble) {
+                    const dist = Math.hypot(candyParticle.x - b.x, candyParticle.y - b.y);
+                    if (dist < candyParticle.radius + b.radius) {
+                        b.active = false;
+                        inBubble = true;
+                        sound.playPop();
+                    }
+                }
+            });
+
+            // Monster Eat Check
+            const distToMonster = Math.hypot(candyParticle.x - monster.x, candyParticle.y - monster.y);
+            if (distToMonster < monster.radius + 5) {
+                gameFinished = true;
+                sound.playChomp();
+                showVictory();
+            }
+
+            // Out of Screen Bounds Check -> Restart Level
+            if (candyParticle.y > height + 50 || candyParticle.x < -50 || candyParticle.x > width + 50) {
+                initLevel(currentLevelIndex);
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Background Grid/Pattern
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle Dots
+            ctx.fillStyle = 'rgba(255,255,255,0.03)';
+            for (let x = 20; x < width; x += 40) {
+                for (let y = 20; y < height; y += 40) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Draw Game Elements
+            drawStars();
+            drawBubbles();
+            drawCushions();
+            ropes.forEach(r => r.draw(ctx));
+            drawMonster();
+            drawCandy();
+            drawSliceTrail();
+        }
+
+        function gameLoop() {
+            updatePhysics();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- UI & Modal Logic ---
+        function showVictory() {
+            const victoryModal = document.getElementById('modal-victory');
+            const victoryStars = document.querySelectorAll('#victory-stars .star-win');
+            victoryStars.forEach((star, idx) => {
+                if (idx < collectedStarsCount) {
+                    star.classList.remove('text-gray-600', 'opacity-30');
+                    star.classList.add('text-amber-400');
+                } else {
+                    star.classList.remove('text-amber-400');
+                    star.classList.add('text-gray-600', 'opacity-30');
+                }
+            });
+            victoryModal.classList.remove('hidden');
+        }
+
+        function populateLevelGrid() {
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+            levels.forEach((_, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `p-4 rounded-2xl font-fredoka text-2xl flex flex-col items-center justify-center gap-1 transition transform active:scale-95 border-2 ${
+                    idx === currentLevelIndex 
+                        ? 'bg-amber-500 text-amber-950 border-amber-300' 
+                        : 'bg-indigo-800 hover:bg-indigo-700 text-white border-indigo-600'
+                }`;
+                btn.innerHTML = `<span>${idx + 1}</span>`;
+                btn.onclick = () => initLevel(idx);
+                grid.appendChild(btn);
+            });
+        }
+
+        // Button Event Handlers
+        document.getElementById('btn-restart').onclick = () => initLevel(currentLevelIndex);
+        document.getElementById('btn-victory-restart').onclick = () => initLevel(currentLevelIndex);
+        document.getElementById('btn-next-level').onclick = () => {
+            const nextIdx = (currentLevelIndex + 1) % levels.length;
+            initLevel(nextIdx);
+        };
+        document.getElementById('btn-select-level').onclick = () => {
+            populateLevelGrid();
+            document.getElementById('modal-levels').classList.remove('hidden');
+        };
+        document.getElementById('btn-close-levels').onclick = () => {
+            document.getElementById('modal-levels').classList.add('hidden');
+        };
+
+        // Sound Toggle Button
+        document.getElementById('btn-mute').onclick = () => {
+            sound.muted = !sound.muted;
+            document.getElementById('icon-sound-on').classList.toggle('hidden', sound.muted);
+            document.getElementById('icon-sound-off').classList.toggle('hidden', !sound.muted);
+        };
+
+        // Initialize and Start Game
+        window.onload = () => {
+            resizeCanvas();
+            initLevel(0);
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
